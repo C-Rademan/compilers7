@@ -92,10 +92,10 @@ CHARACTERS
 TOKENS
   identifier = letter { { "_" } (letter | digit) } .
   number     = digit { digit } .
-  stringLit  = '"' { stringCh | backslash printable } '"' .
+  stringLit  = '"' { stringCh | backslash printable } '"' . 
   charLit    = "'" ( charCh   | backslash printable ) "'" .
 
-PRAGMAS
+PRAGMAS										/* added pragmas for task 1 */
   DebugOn     = "$D+" .                      (. debug     = true; .)
   DebugOff    = "$D-" .                      (. debug     = false; .)
   ProduceCodOn = "$C+" .					 (. listCode  = true; .)
@@ -239,6 +239,8 @@ PRODUCTIONS
   IfStatement<StackFrame frame>
                                              (. Label falseLabel = new Label(!known); .)
   =  "if" "(" Condition ")"                  (. CodeGen.branchFalse(falseLabel); .)
+	   ["then"								 (. SemError("this phrase is not required in Parva if statements"); .)
+	   ]
        Statement<frame>                      (. falseLabel.here(); .)
   .
 
@@ -435,9 +437,11 @@ PRODUCTIONS
      | "%"                                   (. op = CodeGen.rem; .)
   .
 
-  EqualOp<out int op>                        (. op = CodeGen.nop; .)
+  EqualOp<out int op>                        (. op = CodeGen.nop; .)								/* edited for task 3 to allow for silly mistakes in Parva language */
   =    "=="                                  (. op = CodeGen.ceq; .)
+	 | "="									 (. SemError("should be == not ="); op = CodeGen.ceq; .)
      | "!="                                  (. op = CodeGen.cne; .)
+	 | "<>"									 (. SemError("should be != not <>"); op=CodeGen.cne; .)
   .
 
   RelOp<out int op>                          (. op = CodeGen.nop; .)
@@ -447,15 +451,21 @@ PRODUCTIONS
      | ">="                                  (. op = CodeGen.cge; .)
   .
 
-  AssignOp = "=" .
+  AssignOp 
+  = 
+  "=" 
+  | ":="									(. SemError("should be = not :="); .)
+  .
 
   Ident<out String name>
   =  identifier                              (. name = token.val; .)
   .
 
-  StringConst<out String str>
-  =  stringLit                               (. str = token.val;
-                                                str = unescape(str.substring(1, str.length() - 1)); .)
+  StringConst<out String str>				(. String addStr ="";.)	/* Task2: edited StringConst to allow for adjacent stringLit to be concatenated */	   
+  =  stringLit 								(. str = token.val; str = unescape(str.substring(1,str.length()-1)); .) 
+  {stringLit 								(. addStr = token.val; addStr = unescape(addStr.substring(1,addStr.length()-1)); str+=addStr;.)							
+  |"+" stringLit							(. addStr = token.val; addStr = unescape(addStr.substring(1,addStr.length()-1)); str+=addStr;.) 
+  }                                         
   .
 
   CharConst<out int value>
